@@ -169,6 +169,12 @@ export default function StudyApp() {
     }
     const dayIdx = todayMonIndex();
     const daily = ensureDaily(who).slice();
+    if (daily[dayIdx] && daily[dayIdx] > 0) {
+      const confirmMsg = `이미 오늘(${DAY_LABELS[dayIdx]})에 ${daily[dayIdx]}시간이 기록되어 있습니다. 추가로 ${hours}시간을 더하시겠습니까?`;
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+    }
     daily[dayIdx] = (daily[dayIdx] || 0) + hours;
     const total = daily.reduce((a, b) => a + b, 0);
     await upsertParticipant({
@@ -203,14 +209,10 @@ export default function StudyApp() {
     </SelectItem>
   ));
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-[200px] text-lg text-muted-foreground">로딩중...</div>;
-  }
-
   return (
     <div className="space-y-6">
       {/* 운영자 로그인 UI */}
-      <div className="flex gap-2 items-center mb-2">
+      <div className="flex justify-end gap-2 items-center mb-2">
         {isAdmin ? (
           <>
             <span className="text-green-600 font-bold">운영자 모드</span>
@@ -353,74 +355,84 @@ export default function StudyApp() {
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table className="bg-white rounded-lg">
-            <thead className="border-b">
-              <tr className="hover:bg-muted/50 transition-colors">
-                <th className="whitespace-nowrap">닉네임</th>
-                {DAY_LABELS.map((d) => (
-                  <th key={d} className={`text-center p-4 whitespace-nowrap ${d === '토' ? 'text-blue-400' : d === '일' ? 'text-red-400' : ''}`}>
-                    {d}
-                  </th>
-                ))}
-                <th className="text-right p-4 whitespace-nowrap">목표</th>
-                <th className="text-right p-4 whitespace-nowrap">공부</th>
-                <th className="text-center whitespace-nowrap p-4">달성여부</th>
-              </tr>
-            </thead>
-            <tbody>
-              {achieved.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={11}
-                    className="text-center text-sm text-muted-foreground p-4 bg-muted font-bold
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <svg className="animate-spin h-8 w-8 text-indigo-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+              <span className="text-indigo-500 font-medium text-lg">데이터를 불러오는 중...</span>
+            </div>
+          ) : (
+            <Table className="bg-white rounded-lg">
+              <thead className="border-b">
+                <tr className="hover:bg-muted/50 transition-colors">
+                  <th className="whitespace-nowrap">닉네임</th>
+                  {DAY_LABELS.map((d) => (
+                    <th key={d} className={`text-center p-4 whitespace-nowrap ${d === '토' ? 'text-blue-400' : d === '일' ? 'text-red-400' : ''}`}>
+                      {d}
+                    </th>
+                  ))}
+                  <th className="text-right p-4 whitespace-nowrap">목표</th>
+                  <th className="text-right p-4 whitespace-nowrap">공부</th>
+                  <th className="text-center whitespace-nowrap p-4">달성여부</th>
+                </tr>
+              </thead>
+              <tbody>
+                {achieved.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={11}
+                      className="text-center text-sm text-muted-foreground p-4 bg-muted font-bold
                     rounded-b-lg
                   "
-                  >
-                    아직 참여자가 없습니다.
-                  </td>
-                </tr>
-              ) : (
-                achieved.map((p) => {
-                  const daily = p.dailyHours && p.dailyHours.length === 7 ? p.dailyHours : [0, 0, 0, 0, 0, 0, 0];
-                  const total = sumHours(p);
-                  return (
-                    <tr key={p.name} className="font-bold hover:bg-muted/50 transition-colors">
-                      <td
-                        className="p-4 whitespace-nowrap
+                    >
+                      아직 참여자가 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  achieved.map((p) => {
+                    const daily = p.dailyHours && p.dailyHours.length === 7 ? p.dailyHours : [0, 0, 0, 0, 0, 0, 0];
+                    const total = sumHours(p);
+                    return (
+                      <tr key={p.name} className="font-bold hover:bg-muted/50 transition-colors">
+                        <td
+                          className="p-4 whitespace-nowrap
                       "
-                      >
-                        {p.name}
-                      </td>
-                      {daily.map((h, i) => (
-                        <td key={i} className="p-4 text-center tabular-nums">
-                          {h || 0}
+                        >
+                          {p.name}
                         </td>
-                      ))}
-                      <td className="p-4 text-right">{p.goalHours ?? '-'}시간</td>
-                      <td className="p-4 text-right tabular-nums">{total}시간</td>
-                      <td className="p-4 text-center">
-                        {p.goalHours != null ? (
-                          total >= (p.goalHours || 0) ? (
-                            <Badge variant="default" className="h-5 min-w-5 rounded-full bg-blue-300">
-                              O
-                            </Badge>
+                        {daily.map((h, i) => (
+                          <td key={i} className="p-4 text-center tabular-nums">
+                            {h || 0}
+                          </td>
+                        ))}
+                        <td className="p-4 text-right">{p.goalHours ?? '-'} h</td>
+                        <td className="p-4 text-right tabular-nums">{total} h</td>
+                        <td className="p-4 text-center">
+                          {p.goalHours != null ? (
+                            total >= (p.goalHours || 0) ? (
+                              <Badge variant="default" className="h-5 min-w-5 rounded-full bg-blue-300">
+                                O
+                              </Badge>
+                            ) : (
+                              <Badge variant="destructive" className="h-5 min-w-5 rounded-full bg-red-300">
+                                X
+                              </Badge>
+                            )
                           ) : (
-                            <Badge variant="destructive" className="h-5 min-w-5 rounded-full bg-red-300">
-                              X
+                            <Badge variant="outline" className="h-5 min-w-5 rounded-full">
+                              -
                             </Badge>
-                          )
-                        ) : (
-                          <Badge variant="outline" className="h-5 min-w-5 rounded-full">
-                            -
-                          </Badge>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </Table>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </Table>
+          )}
           <p className="mt-3 text-xs text-muted-foreground">운영진은 매주 일요일 목표 달성 여부를 확인합니다.</p>
         </CardContent>
       </Card>

@@ -1,48 +1,52 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Coffee, Gamepad2, RefreshCw, Trophy, Users } from 'lucide-react';
+import { BookOpenText, CalendarDays, Coffee, Gamepad2, RefreshCw, Trophy } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import type { GiftRecord, Participant } from '../lib/types';
 import WheelSpinner from './games/WheelSpinner';
-import RandomBalls from './games/RandomBalls';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Table } from './ui/table';
-import { Select, SelectContent, SelectTrigger, SelectValue } from './ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from './ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+// dayjs 설치 필요: npm install dayjs @types/dayjs
+import dayjs from 'dayjs';
 
 const HOUR_OPTIONS = Array.from({ length: 10 }, (_, i) => (i + 1) * 5); // 5..50
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
 
-function isSunday(date = new Date()) {
-  return date.getDay() === 0;
+function isSunday(date: Date = new Date()) {
+  return dayjs(date).day() === 0;
 }
 
-function thisWeekKey(d = new Date()) {
-  // Sunday-based week key for auto-reset
-  const year = d.getFullYear();
-  const start = new Date(d.getFullYear(), 0, 1);
-  const days = Math.floor((+d - +start) / 86400000);
-  const week = Math.floor((days + start.getDay()) / 7) + 1;
+// Sunday-based week key for auto-reset
+function thisWeekKey(d: Date = new Date()) {
+  const date = dayjs(d);
+  const year = date.year();
+  const start = dayjs(new Date(year, 0, 1));
+  const days = date.diff(start, 'day');
+  const week = Math.floor((days + start.day()) / 7) + 1;
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
 
 // Monday-first week-of-month label: "8월 3주차"
-function koreanWeekOfMonthLabel(d = new Date()) {
-  const year = d.getFullYear();
-  const month = d.getMonth();
-  const day = d.getDate();
-  const first = new Date(year, month, 1);
-  const monIndex = (first.getDay() + 6) % 7; // Monday=0..Sunday=6
+function koreanWeekOfMonthLabel(d: Date = new Date()) {
+  const date = dayjs(d);
+  const year = date.year();
+  const month = date.month(); // 0-indexed
+  const day = date.date();
+  const first = dayjs(new Date(year, month, 1));
+  const monIndex = (first.day() + 6) % 7; // Monday=0..Sunday=6
   const week = Math.floor((monIndex + day - 1) / 7) + 1;
   return `${month + 1}월 ${week}주차`;
 }
 
 // Monday-first index of today: 0..6
-function todayMonIndex(d = new Date()) {
-  return (d.getDay() + 6) % 7;
+function todayMonIndex(d: Date = new Date()) {
+  const date = dayjs(d);
+  return (date.day() + 6) % 7;
 }
 
 function sumHours(p: Participant) {
@@ -58,7 +62,7 @@ export default function StudyApp() {
   const [storedWeek, setStoredWeek] = useLocalStorage<string | null>('study-week-key', null);
 
   const weekKey = useMemo(() => thisWeekKey(), []);
-  const sunday = true;
+  const sunday = true; // isSunday()
   const weekLabel = koreanWeekOfMonthLabel();
 
   // Upgrade old records to include dailyHours
@@ -88,7 +92,7 @@ export default function StudyApp() {
 
   // Form states
   const [name, setName] = useState('');
-  const [goal, setGoal] = useState<number | undefined>(10);
+  const [goal, setGoal] = useState<string>('');
 
   const [logName, setLogName] = useState('');
   const [logHours, setLogHours] = useState<number | ''>('');
@@ -128,20 +132,20 @@ export default function StudyApp() {
   function handleVote() {
     const trimmed = name.trim();
     if (!trimmed || !goal) {
-      alert('이름과 목표 시간을 입력해 주세요.');
+      alert('닉네임과 목표 시간을 입력해 주세요.');
       return;
     }
     const existing = participants.find((p) => p.name === trimmed);
     upsertParticipant({
       id: existing?.id ?? crypto.randomUUID(),
       name: trimmed,
-      goalHours: goal,
+      goalHours: parseInt(goal),
       studiedHours: sumHours(existing || { studiedHours: 0, id: '', name: '', comments: [], dailyHours: [0, 0, 0, 0, 0, 0, 0] }),
       comments: existing?.comments ?? [],
       dailyHours: ensureDaily(existing),
     });
     setName('');
-    setGoal(undefined);
+    setGoal('');
   }
 
   function handleLog() {
@@ -193,9 +197,9 @@ export default function StudyApp() {
   }
 
   const hourItems = HOUR_OPTIONS.map((h) => (
-    <option key={h} value={String(h)}>
+    <SelectItem key={h} value={String(h)}>
       {h}시간
-    </option>
+    </SelectItem>
   ));
 
   return (
@@ -203,17 +207,17 @@ export default function StudyApp() {
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-muted p-2">
-            <Users className="size-5" />
+            <BookOpenText className="size-5" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold">매주 목표달성 스터디</h1>
+            <h1 className="text-xl font-semibold">매주 목표달성</h1>
             <p className="text-sm text-muted-foreground">함께 목표를 공유하고 체크하며 동기부여를 얻어요.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 rounded-md border px-2 py-1 text-sm">
+        <Badge variant={'outline'} className="py-2 rounded-full">
           <CalendarDays className="size-4 text-amber-600" />
-          <span className="whitespace-nowrap">오늘은 {weekLabel}</span>
-        </div>
+          <span className="whitespace-nowrap">{weekLabel}</span>
+        </Badge>
       </header>
 
       {!sunday && (
@@ -225,26 +229,31 @@ export default function StudyApp() {
 
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>1) 목표 시간 투표 (일요일 한정)</CardTitle>
+          <CardTitle>목표 시간 투표 (일요일 한정)</CardTitle>
           <CardDescription>이번 주 목표 시간을 5시간 단위로 선택하세요. 등록 후 변경 불가.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="sm:col-span-1">
-              <Label htmlFor="vote-name">이름</Label>
-              <Input id="vote-name" className="mt-1" placeholder="이름 입력" value={name} onChange={(e) => setName(e.target.value)} />
+              <Label htmlFor="vote-name">닉네임</Label>
+              <Input id="vote-name" className="mt-1" placeholder="닉네임 입력" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
             <div className="sm:col-span-1">
               <Label htmlFor="vote-goal">목표시간</Label>
-              <Select defaultValue={goal !== undefined ? String(goal) : undefined} onValueChange={(value) => setGoal(value ? Number(value) : undefined)} disabled={!sunday}>
-                <SelectTrigger>
+              <Select value={goal} onValueChange={(v) => setGoal(v ? v : '')} disabled={!sunday}>
+                <SelectTrigger className="w-full mt-1">
                   <SelectValue placeholder="5 ~ 50시간" />
                 </SelectTrigger>
-                <SelectContent>{hourItems}</SelectContent>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>목표시간</SelectLabel>
+                    {hourItems}
+                  </SelectGroup>
+                </SelectContent>
               </Select>
             </div>
             <div className="flex items-end sm:col-span-1">
-              <Button className="w-full" onClick={handleVote} disabled={!sunday}>
+              <Button className="w-full bg-[#838de5] hover:bg-[#6f7dff]" onClick={handleVote} disabled={!sunday}>
                 목표 등록
               </Button>
             </div>
@@ -255,19 +264,28 @@ export default function StudyApp() {
 
       <Card className="w-full">
         <CardHeader>
-          <CardTitle>2) 공부 시간 기록</CardTitle>
+          <CardTitle>공부 시간 기록</CardTitle>
           <CardDescription>오늘 공부한 시간을 기록하면, 해당 요일 칸에 자동으로 누적됩니다.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
             <div className="sm:col-span-1">
-              <Label htmlFor="log-name">이름</Label>
-              <Input id="log-name" className="mt-1" placeholder="이름 입력" value={logName} onChange={(e) => setLogName(e.target.value)} list="names" />
-              <datalist id="names">
-                {participants.map((p) => (
-                  <option key={p.name} value={p.name} />
-                ))}
-              </datalist>
+              <Label htmlFor="log-name">닉네임</Label>
+              <Select value={logName} onValueChange={(v) => setLogName(v)}>
+                <SelectTrigger id="log-name" className="w-full mt-1">
+                  <SelectValue placeholder="닉네임 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>닉네임</SelectLabel>
+                    {participants.map((p) => (
+                      <SelectItem key={p.name} value={p.name}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
             <div className="sm:col-span-1">
               <Label htmlFor="log-hours">공부시간(+)</Label>
@@ -289,7 +307,7 @@ export default function StudyApp() {
               <Input id="log-comment" className="mt-1" placeholder="예: 8/8 오프라인 스터디 3시간" value={logComment} onChange={(e) => setLogComment(e.target.value)} />
             </div>
             <div className="sm:col-span-4">
-              <Button variant="secondary" className="w-full sm:w-auto" onClick={handleLog}>
+              <Button className="w-full sm:w-auto bg-[#838de5] hover:bg-[#6f7dff]" onClick={handleLog}>
                 기록하기 (오늘: {DAY_LABELS[todayMonIndex()]})
               </Button>
             </div>
@@ -300,39 +318,44 @@ export default function StudyApp() {
       <Card className="w-full">
         <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col items-start gap-2">
-            <CardTitle>3) 달성 현황 (요일별)</CardTitle>
+            <CardTitle>달성 현황 (요일별)</CardTitle>
             <CardDescription>요일별 누적과 총합을 확인하세요.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline">
+            <Badge variant="outline" className="rounded-full">
               <Trophy className="size-3.5 text-amber-500" />
               <span className="ml-1">달성 {achievers.length}</span>
             </Badge>
-            <Badge variant="outline">
+            <Badge variant="outline" className="rounded-full">
               <Coffee className="size-3.5 text-emerald-600" />
               <span className="ml-1">미달성 {nonAchievers.length}</span>
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table>
-            <thead>
-              <tr>
-                <th className="whitespace-nowrap">이름</th>
+          <Table className="bg-white rounded-lg">
+            <thead className="border-b">
+              <tr className="hover:bg-muted/50 transition-colors">
+                <th className="whitespace-nowrap">닉네임</th>
                 {DAY_LABELS.map((d) => (
-                  <th key={d} className="text-center whitespace-nowrap">
+                  <th key={d} className={`text-center p-4 whitespace-nowrap ${d === '토' ? 'text-blue-400' : d === '일' ? 'text-red-400' : ''}`}>
                     {d}
                   </th>
                 ))}
-                <th className="text-right whitespace-nowrap">목표</th>
-                <th className="text-right whitespace-nowrap">공부</th>
-                <th className="text-center whitespace-nowrap">달성여부</th>
+                <th className="text-right p-4 whitespace-nowrap">목표</th>
+                <th className="text-right p-4 whitespace-nowrap">공부</th>
+                <th className="text-center whitespace-nowrap p-4">달성여부</th>
               </tr>
             </thead>
             <tbody>
               {achieved.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center text-sm text-muted-foreground">
+                  <td
+                    colSpan={11}
+                    className="text-center text-sm text-muted-foreground p-4 bg-muted font-bold
+                    rounded-b-lg
+                  "
+                  >
                     아직 참여자가 없습니다.
                   </td>
                 </tr>
@@ -341,16 +364,37 @@ export default function StudyApp() {
                   const daily = p.dailyHours && p.dailyHours.length === 7 ? p.dailyHours : [0, 0, 0, 0, 0, 0, 0];
                   const total = sumHours(p);
                   return (
-                    <tr key={p.name}>
-                      <td className="font-medium whitespace-nowrap">{p.name}</td>
+                    <tr key={p.name} className="font-bold hover:bg-muted/50 transition-colors">
+                      <td
+                        className="p-4 whitespace-nowrap
+                      "
+                      >
+                        {p.name}
+                      </td>
                       {daily.map((h, i) => (
-                        <td key={i} className="text-center tabular-nums">
+                        <td key={i} className="p-4 text-center tabular-nums">
                           {h || 0}
                         </td>
                       ))}
-                      <td className="text-right">{p.goalHours ?? '-'}시간</td>
-                      <td className="text-right tabular-nums">{total}시간</td>
-                      <td className="text-center">{p.goalHours != null ? total >= (p.goalHours || 0) ? <Badge variant="default">O</Badge> : <Badge variant="destructive">X</Badge> : <Badge variant="outline">-</Badge>}</td>
+                      <td className="p-4 text-right">{p.goalHours ?? '-'}시간</td>
+                      <td className="p-4 text-right tabular-nums">{total}시간</td>
+                      <td className="p-4 text-center">
+                        {p.goalHours != null ? (
+                          total >= (p.goalHours || 0) ? (
+                            <Badge variant="default" className="h-5 min-w-5 rounded-full bg-blue-300">
+                              O
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="h-5 min-w-5 rounded-full bg-red-300">
+                              X
+                            </Badge>
+                          )
+                        ) : (
+                          <Badge variant="outline" className="h-5 min-w-5 rounded-full">
+                            -
+                          </Badge>
+                        )}
+                      </td>
                     </tr>
                   );
                 })
@@ -366,8 +410,8 @@ export default function StudyApp() {
           <div className="flex items-center gap-2">
             <Gamepad2 className="size-5" />
             <div>
-              <div className="card-title">4) 벌칙 게임: 선물 받을 사람 뽑기</div>
-              <div className="card-description">미달성자가 정해지면 달성자들 중 랜덤으로 1명을 뽑아 선물을 보냅니다. (돌림판, 랜덤볼)</div>
+              <CardTitle>벌칙 게임: 선물 받을 사람 뽑기</CardTitle>
+              <CardDescription>미달성자가 정해지면 달성자들 중 랜덤으로 1명을 뽑아 선물을 보냅니다.</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -406,11 +450,24 @@ export default function StudyApp() {
       </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="text-xs text-muted-foreground">이 프로젝트의 목적은 목표를 공유하고 서로 체크하며 동기부여를 얻는 것입니다. 규칙에 너무 얽매이지 말고 좋은 계기로 삼아주세요.</div>
+        <div className="text-xs text-muted-foreground">
+          <p> 이 프로젝트의 목적은 목표를 공유하고 서로 체크하며 동기부여를 얻는 것입니다.</p>
+          <p>규칙에 너무 얽매이지 말고 좋은 계기로 삼아주세요.</p>
+        </div>
         <Button variant="outline" className="gap-2" onClick={handleResetAll}>
           <RefreshCw className="size-4" />
           초기화
         </Button>
+      </div>
+      <div className="flex flex-col items-center my-8">
+        <h2 className="font-bold text-4xl text-gray-400">"</h2>
+        <blockquote className="text-center text-lg italic text-indigo-700 font-serif max-w-xl" style={{ fontFamily: 'Georgia, Times, serif' }}>
+          첫 번째 원칙은 자신을 속여서는 안 되며, 자신을 속이기 가장 쉬운 사람은 바로 자신이다.
+        </blockquote>
+        <h2 className="font-bold text-4xl text-gray-400 mt-2">"</h2>
+        <h3 className="mt-2 text-base text-gray-500 font-medium" style={{ fontFamily: 'Georgia, Times, serif' }}>
+          – Richard Feynman
+        </h3>
       </div>
     </div>
   );
@@ -419,7 +476,6 @@ export default function StudyApp() {
 function GiftGame({ achievers, nonAchievers, onGift }: { achievers: Participant[]; nonAchievers: Participant[]; onGift: (from: string, to: string) => void }) {
   const [from, setFrom] = useState(nonAchievers[0]?.name ?? '');
   const [picked, setPicked] = useState<string | null>(null);
-  const [tab, setTab] = useState<'wheel' | 'balls'>('wheel');
 
   useEffect(() => {
     if (!nonAchievers.find((n) => n.name === from)) {
@@ -448,32 +504,13 @@ function GiftGame({ achievers, nonAchievers, onGift }: { achievers: Participant[
       </div>
 
       <div>
-        <div className="mb-2 grid grid-cols-2 gap-2">
-          <button className={`btn ${tab === 'wheel' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('wheel')}>
-            돌림판
-          </button>
-          <button className={`btn ${tab === 'balls' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setTab('balls')}>
-            랜덤볼
-          </button>
-        </div>
-
-        {tab === 'wheel' ? (
-          <WheelSpinner
-            options={achieverNames}
-            onDone={(winner) => {
-              setPicked(winner);
-              if (from) onGift(from, winner);
-            }}
-          />
-        ) : (
-          <RandomBalls
-            options={achieverNames}
-            onDone={(winner) => {
-              setPicked(winner);
-              if (from) onGift(from, winner);
-            }}
-          />
-        )}
+        <WheelSpinner
+          options={achieverNames}
+          onDone={(winner) => {
+            setPicked(winner);
+            if (from) onGift(from, winner);
+          }}
+        />
       </div>
 
       {picked && (

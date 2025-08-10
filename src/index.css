@@ -3,6 +3,18 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* pretendard 가져오기 */
+@font-face {
+  font-family: 'Pretendard';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/Pretendard-Regular.woff2') format('woff2'),
+}
+
+* {
+  font-family: 'Pretendard', sans-serif;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

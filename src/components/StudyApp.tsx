@@ -187,9 +187,15 @@ export default function StudyApp() {
     setLogComment('');
   }
 
-  function handleResetAll() {
+  async function handleResetAll() {
+    if (!isAdmin) return;
+    if (!window.confirm('정말로 이번 주 모든 참여자/선물 기록을 초기화하시겠습니까?')) return;
+    setLoading(true);
+    await supabase.from('participants').delete().eq('weekKey', weekKey);
+    await supabase.from('gifts').delete().eq('weekKey', weekKey);
     setParticipants([]);
     setGifts([]);
+    setLoading(false);
   }
 
   function recordGift(fromName: string, toName: string) {
@@ -486,7 +492,7 @@ export default function StudyApp() {
           <p> 이 프로젝트의 목적은 목표를 공유하고 서로 체크하며 동기부여를 얻는 것입니다.</p>
           <p>규칙에 너무 얽매이지 말고 좋은 계기로 삼아주세요.</p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={handleResetAll}>
+        <Button variant="outline" className="gap-2" onClick={handleResetAll} disabled={!isAdmin || loading}>
           <RefreshCw className="size-4" />
           초기화
         </Button>

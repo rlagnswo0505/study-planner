@@ -1,6 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
 import { BookOpenText, CalendarDays, Coffee, Gamepad2, RefreshCw, Trophy } from 'lucide-react';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+// import { useLocalStorage } from '../hooks/useLocalStorage';
+import { supabase } from '../lib/supabaseClient';
+// Supabase admins 테이블 연동 운영자 로그인 훅
+function useSupabaseAdminAuth() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function login(nickname: string, password: string) {
+    const { data, error } = await supabase.from('admins').select('*').eq('nickname', nickname).eq('password', password).single();
+    if (error || !data) {
+      setIsAdmin(false);
+      setError('닉네임 또는 비밀번호가 올바르지 않습니다.');
+      return false;
+    } else {
+      setIsAdmin(true);
+      setError(null);
+      return true;
+    }
+  }
+  function logout() {
+    setIsAdmin(false);
+    setError(null);
+  }
+  return { isAdmin, error, login, logout };
+}
 import type { GiftRecord, Participant } from '../lib/types';
 import WheelSpinner from './games/WheelSpinner';
 import { Input } from './ui/input';
@@ -16,10 +39,6 @@ import dayjs from 'dayjs';
 
 const HOUR_OPTIONS = Array.from({ length: 10 }, (_, i) => (i + 1) * 5); // 5..50
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
-
-// function isSunday(date: Date = new Date()) {
-//   return dayjs(date).day() === 0;
-// }
 
 // Sunday-based week key for auto-reset
 function thisWeekKey(d: Date = new Date()) {
@@ -57,37 +76,25 @@ function sumHours(p: Participant) {
 }
 
 export default function StudyApp() {
-  const [participants, setParticipants] = useLocalStorage<Participant[]>('study-participants', []);
-  const [gifts, setGifts] = useLocalStorage<GiftRecord[]>('study-gifts', []);
-  const [storedWeek, setStoredWeek] = useLocalStorage<string | null>('study-week-key', null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [gifts, setGifts] = useState<GiftRecord[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const weekKey = useMemo(() => thisWeekKey(), []);
-  const sunday = true; // isSunday()
   const weekLabel = koreanWeekOfMonthLabel();
+  const { isAdmin, error: adminError, login, logout } = useSupabaseAdminAuth();
+  const [adminNick, setAdminNick] = useState('');
+  const [adminPw, setAdminPw] = useState('');
 
-  // Upgrade old records to include dailyHours
+  // DB에서 participants/gifts 불러오기
   useEffect(() => {
-    setParticipants((prev) => prev.map((p) => (p.dailyHours && p.dailyHours.length === 7 ? p : { ...p, dailyHours: [0, 0, 0, 0, 0, 0, 0] })));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Weekly auto-reset
-  useEffect(() => {
-    if (!storedWeek) {
-      setStoredWeek(weekKey);
-      return;
-    }
-    if (storedWeek !== weekKey) {
-      setParticipants([]);
-      setGifts([]);
-      setStoredWeek(weekKey);
-      // simple browser toast
-      try {
-        // eslint-disable-next-line no-alert
-        console.info('새로운 주간이 시작되어 데이터가 초기화되었습니다.');
-      } catch {}
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setLoading(true);
+    Promise.all([supabase.from('participants').select('*').eq('weekKey', weekKey), supabase.from('gifts').select('*').eq('weekKey', weekKey)])
+      .then(([pRes, gRes]) => {
+        setParticipants(Array.isArray(pRes.data) ? pRes.data : []);
+        setGifts(Array.isArray(gRes.data) ? gRes.data : []);
+      })
+      .finally(() => setLoading(false));
   }, [weekKey]);
 
   // Form states
@@ -117,26 +124,26 @@ export default function StudyApp() {
     return p?.dailyHours && p.dailyHours.length === 7 ? p.dailyHours : [0, 0, 0, 0, 0, 0, 0];
   }
 
-  function upsertParticipant(p: Participant) {
-    setParticipants((prev) => {
-      const idx = prev.findIndex((x) => x.name.trim() === p.name.trim());
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = { ...prev[idx], ...p, dailyHours: ensureDaily(prev[idx]) };
-        return next;
-      }
-      return [...prev, { ...p, dailyHours: ensureDaily(p) }];
-    });
+  async function upsertParticipant(p: Participant) {
+    setLoading(true);
+    // upsert: name+weekKey 기준으로 덮어쓰기
+    const { error } = await supabase.from('participants').upsert([{ ...p, weekKey, dailyHours: ensureDaily(p) }], { onConflict: 'name,weekKey' });
+    if (!error) {
+      // 최신 데이터 다시 불러오기
+      const { data } = await supabase.from('participants').select('*').eq('weekKey', weekKey);
+      setParticipants(Array.isArray(data) ? data : []);
+    }
+    setLoading(false);
   }
 
-  function handleVote() {
+  async function handleVote() {
     const trimmed = name.trim();
     if (!trimmed || !goal) {
       alert('닉네임과 목표 시간을 입력해 주세요.');
       return;
     }
     const existing = participants.find((p) => p.name === trimmed);
-    upsertParticipant({
+    await upsertParticipant({
       id: existing?.id ?? crypto.randomUUID(),
       name: trimmed,
       goalHours: parseInt(goal),
@@ -148,11 +155,11 @@ export default function StudyApp() {
     setGoal('');
   }
 
-  function handleLog() {
+  async function handleLog() {
     const trimmed = logName.trim();
     const who = participants.find((p) => p.name.trim() === trimmed);
     if (!who) {
-      alert('먼저 일요일에 목표를 등록해 주세요.');
+      alert('먼저 목표를 등록해 주세요.');
       return;
     }
     const hours = typeof logHours === 'number' ? logHours : parseInt(String(logHours || 0), 10);
@@ -161,20 +168,15 @@ export default function StudyApp() {
       return;
     }
     const dayIdx = todayMonIndex();
-    setParticipants((prev) =>
-      prev.map((p) => {
-        if (p.name.trim() !== trimmed) return p;
-        const daily = ensureDaily(p).slice();
-        daily[dayIdx] = (daily[dayIdx] || 0) + hours;
-        const total = daily.reduce((a, b) => a + b, 0);
-        return {
-          ...p,
-          dailyHours: daily,
-          studiedHours: total,
-          comments: logComment ? [...p.comments, logComment] : p.comments,
-        };
-      })
-    );
+    const daily = ensureDaily(who).slice();
+    daily[dayIdx] = (daily[dayIdx] || 0) + hours;
+    const total = daily.reduce((a, b) => a + b, 0);
+    await upsertParticipant({
+      ...who,
+      dailyHours: daily,
+      studiedHours: total,
+      comments: logComment ? [...who.comments, logComment] : who.comments,
+    });
     setLogHours('');
     setLogComment('');
   }
@@ -182,7 +184,6 @@ export default function StudyApp() {
   function handleResetAll() {
     setParticipants([]);
     setGifts([]);
-    setStoredWeek(weekKey);
   }
 
   function recordGift(fromName: string, toName: string) {
@@ -204,6 +205,26 @@ export default function StudyApp() {
 
   return (
     <div className="space-y-6">
+      {/* 운영자 로그인 UI */}
+      <div className="flex gap-2 items-center mb-2">
+        {isAdmin ? (
+          <>
+            <span className="text-green-600 font-bold">운영자 모드</span>
+            <Button size="sm" variant="outline" onClick={logout}>
+              로그아웃
+            </Button>
+          </>
+        ) : (
+          <>
+            <Input style={{ maxWidth: 120 }} placeholder="운영자 닉네임" value={adminNick} onChange={(e) => setAdminNick(e.target.value)} />
+            <Input style={{ maxWidth: 100 }} type="password" placeholder="비밀번호" value={adminPw} onChange={(e) => setAdminPw(e.target.value)} />
+            <Button size="sm" variant="outline" onClick={() => login(adminNick, adminPw)}>
+              로그인
+            </Button>
+            {adminError && <span className="text-red-500 text-xs ml-2">{adminError}</span>}
+          </>
+        )}
+      </div>
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-muted p-2">
@@ -220,47 +241,42 @@ export default function StudyApp() {
         </Badge>
       </header>
 
-      {!sunday && (
-        <Alert className="mb-2">
-          <AlertTitle>투표는 일요일 하루만 가능합니다</AlertTitle>
-          <AlertDescription>오늘은 일요일이 아니므로 목표 등록/변경이 비활성화됩니다.</AlertDescription>
-        </Alert>
+      {isAdmin && (
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>목표 시간 입력 (운영자만 가능)</CardTitle>
+            <CardDescription>이번 주 목표 시간을 5시간 단위로 선택하세요. 등록 후 변경 불가.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="sm:col-span-1">
+                <Label htmlFor="vote-name">닉네임</Label>
+                <Input id="vote-name" className="mt-1" placeholder="닉네임 입력" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="sm:col-span-1">
+                <Label htmlFor="vote-goal">목표시간</Label>
+                <Select value={goal} onValueChange={(v) => setGoal(v ? v : '')}>
+                  <SelectTrigger className="w-full mt-1">
+                    <SelectValue placeholder="5 ~ 50시간" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectLabel>목표시간</SelectLabel>
+                      {hourItems}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end sm:col-span-1">
+                <Button className="w-full bg-[#838de5] hover:bg-[#6f7dff]" onClick={handleVote}>
+                  목표 등록
+                </Button>
+              </div>
+              <p className="sm:col-span-3 text-xs text-muted-foreground">오프라인 스터디 시간만 인정됩니다. 1인 스터디의 경우 타임스탬프 등으로 인증해 주세요.</p>
+            </div>
+          </CardContent>
+        </Card>
       )}
-
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>목표 시간 투표 (일요일 한정)</CardTitle>
-          <CardDescription>이번 주 목표 시간을 5시간 단위로 선택하세요. 등록 후 변경 불가.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="sm:col-span-1">
-              <Label htmlFor="vote-name">닉네임</Label>
-              <Input id="vote-name" className="mt-1" placeholder="닉네임 입력" value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-            <div className="sm:col-span-1">
-              <Label htmlFor="vote-goal">목표시간</Label>
-              <Select value={goal} onValueChange={(v) => setGoal(v ? v : '')} disabled={!sunday}>
-                <SelectTrigger className="w-full mt-1">
-                  <SelectValue placeholder="5 ~ 50시간" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>목표시간</SelectLabel>
-                    {hourItems}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end sm:col-span-1">
-              <Button className="w-full bg-[#838de5] hover:bg-[#6f7dff]" onClick={handleVote} disabled={!sunday}>
-                목표 등록
-              </Button>
-            </div>
-            <p className="sm:col-span-3 text-xs text-muted-foreground">오프라인 스터디 시간만 인정됩니다. 1인 스터디의 경우 타임스탬프 등으로 인증해 주세요.</p>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card className="w-full">
         <CardHeader>

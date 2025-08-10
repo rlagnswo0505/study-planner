@@ -17,9 +17,9 @@ import dayjs from 'dayjs';
 const HOUR_OPTIONS = Array.from({ length: 10 }, (_, i) => (i + 1) * 5); // 5..50
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
 
-function isSunday(date: Date = new Date()) {
-  return dayjs(date).day() === 0;
-}
+// function isSunday(date: Date = new Date()) {
+//   return dayjs(date).day() === 0;
+// }
 
 // Sunday-based week key for auto-reset
 function thisWeekKey(d: Date = new Date()) {

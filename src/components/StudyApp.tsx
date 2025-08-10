@@ -203,6 +203,10 @@ export default function StudyApp() {
     </SelectItem>
   ));
 
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-[200px] text-lg text-muted-foreground">로딩중...</div>;
+  }
+
   return (
     <div className="space-y-6">
       {/* 운영자 로그인 UI */}

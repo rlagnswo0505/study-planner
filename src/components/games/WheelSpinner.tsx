@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { Shuffle } from 'lucide-react';
+import { Button } from '../ui/button';
 
-export default function WheelSpinner({ options, onDone }: { options: string[]; onDone: (winner: string) => void }) {
+export default function WheelSpinner({ options, onDone, isAdmin }: { options: string[]; isAdmin: boolean; onDone: (winner: string) => void }) {
   const count = Math.max(options.length, 1);
   const slice = 360 / count;
   const [spinning, setSpinning] = useState(false);
@@ -64,10 +65,10 @@ export default function WheelSpinner({ options, onDone }: { options: string[]; o
           <div className="h-0 w-0 border-x-8 border-b-[14px] border-x-transparent border-b-black" />
         </div>
       </div>
-      <button className="btn btn-primary" disabled={!options.length || spinning} onClick={spin}>
+      <Button className="bg-[#838de5] hover:bg-[#6f7dff]" disabled={!isAdmin || !options.length || spinning} onClick={spin}>
         <Shuffle className="size-4" />
         돌리기
-      </button>
+      </Button>
     </div>
   );
 }

@@ -107,14 +107,16 @@ export default function StudyApp() {
 
   const achieved = useMemo(
     () =>
-      participants.map((p) => {
-        const total = sumHours(p);
-        return {
-          ...p,
-          studiedHours: total,
-          achieved: p.goalHours != null && total >= p.goalHours,
-        };
-      }),
+      participants
+        .map((p) => {
+          const total = sumHours(p);
+          return {
+            ...p,
+            studiedHours: total,
+            achieved: p.goalHours != null && total >= p.goalHours,
+          };
+        })
+        .sort((a, b) => (b.goalHours ?? 0) - (a.goalHours ?? 0)),
     [participants]
   );
   const achievers = achieved.filter((p) => p.achieved);
@@ -454,36 +456,36 @@ export default function StudyApp() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {nonAchievers.length === 0 || achievers.length === 0 ? (
+          {/* {nonAchievers.length === 0 || achievers.length === 0 ? (
             <Alert className="mb-2">
               <AlertTitle>참여 조건을 확인하세요</AlertTitle>
               <AlertDescription>
                 미달성자 {nonAchievers.length}명 / 달성자 {achievers.length}명. 둘 다 1명 이상일 때 진행할 수 있어요.
               </AlertDescription>
             </Alert>
-          ) : (
-            <>
-              <GiftGame achievers={achievers} nonAchievers={nonAchievers} onGift={(from, to) => recordGift(from, to)} />
-              <div className="separator" />
-              <div>
-                <h4 className="mb-2 text-sm font-medium">선물 기록</h4>
-                {gifts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">아직 선물 기록이 없습니다.</p>
-                ) : (
-                  <ul className="space-y-1 text-sm">
-                    {gifts.map((g) => (
-                      <li key={g.id} className="flex items-center justify-between">
-                        <span>
-                          {g.weekKey} · {g.from} ➜ {g.to}
-                        </span>
-                        <span className="text-muted-foreground">{new Date(g.createdAt).toLocaleString()}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </>
-          )}
+          ) : ( */}
+          <>
+            <GiftGame achievers={achievers} nonAchievers={nonAchievers} isAdmin={isAdmin} onGift={(from, to) => recordGift(from, to)} />
+            <div className="separator" />
+            <div>
+              <h4 className="mb-2 text-sm font-medium">선물 기록</h4>
+              {gifts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">아직 선물 기록이 없습니다.</p>
+              ) : (
+                <ul className="space-y-1 text-sm">
+                  {gifts.map((g) => (
+                    <li key={g.id} className="flex items-center justify-between">
+                      <span>
+                        {g.weekKey} · {g.from} ➜ {g.to}
+                      </span>
+                      <span className="text-muted-foreground">{new Date(g.createdAt).toLocaleString()}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+          {/* )} */}
         </CardContent>
       </Card>
 
@@ -511,7 +513,7 @@ export default function StudyApp() {
   );
 }
 
-function GiftGame({ achievers, nonAchievers, onGift }: { achievers: Participant[]; nonAchievers: Participant[]; onGift: (from: string, to: string) => void }) {
+function GiftGame({ achievers, nonAchievers, onGift, isAdmin }: { achievers: Participant[]; nonAchievers: Participant[]; isAdmin: boolean; onGift: (from: string, to: string) => void }) {
   const [from, setFrom] = useState(nonAchievers[0]?.name ?? '');
   const [picked, setPicked] = useState<string | null>(null);
 
@@ -528,13 +530,21 @@ function GiftGame({ achievers, nonAchievers, onGift }: { achievers: Participant[
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="sm:col-span-1">
           <Label htmlFor="from">미달성자</Label>
-          <select id="from" className="select mt-1" value={from} onChange={(e) => setFrom(e.target.value)}>
-            {nonAchievers.map((p) => (
-              <option key={p.name} value={p.name}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <Select value={from} onValueChange={(v) => setFrom(v)}>
+            <SelectTrigger id="from" className="w-30 mt-1">
+              <SelectValue placeholder="미달성자 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>미달성자</SelectLabel>
+                {nonAchievers.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
         <div className="sm:col-span-2">
           <div className="text-sm text-muted-foreground">달성자: {achieverNames.join(', ') || '-'}</div>
@@ -548,6 +558,7 @@ function GiftGame({ achievers, nonAchievers, onGift }: { achievers: Participant[
             setPicked(winner);
             if (from) onGift(from, winner);
           }}
+          isAdmin={isAdmin}
         />
       </div>
 

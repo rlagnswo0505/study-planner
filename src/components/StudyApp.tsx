@@ -456,36 +456,36 @@ export default function StudyApp() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* {nonAchievers.length === 0 || achievers.length === 0 ? (
+          {nonAchievers.length === 0 || achievers.length === 0 ? (
             <Alert className="mb-2">
               <AlertTitle>참여 조건을 확인하세요</AlertTitle>
               <AlertDescription>
                 미달성자 {nonAchievers.length}명 / 달성자 {achievers.length}명. 둘 다 1명 이상일 때 진행할 수 있어요.
               </AlertDescription>
             </Alert>
-          ) : ( */}
-          <>
-            <GiftGame achievers={achievers} nonAchievers={nonAchievers} isAdmin={isAdmin} onGift={(from, to) => recordGift(from, to)} />
-            <div className="separator" />
-            <div>
-              <h4 className="mb-2 text-sm font-medium">선물 기록</h4>
-              {gifts.length === 0 ? (
-                <p className="text-sm text-muted-foreground">아직 선물 기록이 없습니다.</p>
-              ) : (
-                <ul className="space-y-1 text-sm">
-                  {gifts.map((g) => (
-                    <li key={g.id} className="flex items-center justify-between">
-                      <span>
-                        {g.weekKey} · {g.from} ➜ {g.to}
-                      </span>
-                      <span className="text-muted-foreground">{new Date(g.createdAt).toLocaleString()}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </>
-          {/* )} */}
+          ) : (
+            <>
+              <GiftGame achievers={achievers} nonAchievers={nonAchievers} isAdmin={isAdmin} onGift={(from, to) => recordGift(from, to)} />
+              <div className="separator" />
+              <div>
+                <h4 className="mb-2 text-sm font-medium">선물 기록</h4>
+                {gifts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">아직 선물 기록이 없습니다.</p>
+                ) : (
+                  <ul className="space-y-1 text-sm">
+                    {gifts.map((g) => (
+                      <li key={g.id} className="flex items-center justify-between">
+                        <span>
+                          {g.weekKey} · {g.from} ➜ {g.to}
+                        </span>
+                        <span className="text-muted-foreground">{new Date(g.createdAt).toLocaleString()}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

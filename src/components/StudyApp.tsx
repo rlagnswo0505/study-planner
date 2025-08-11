@@ -375,7 +375,7 @@ export default function StudyApp() {
                 <tr className="hover:bg-muted/50 transition-colors">
                   <th className="whitespace-nowrap">닉네임</th>
                   {DAY_LABELS.map((d) => (
-                    <th key={d} className={`text-center p-4 whitespace-nowrap ${d === '토' ? 'text-blue-400' : d === '일' ? 'text-red-400' : ''}`}>
+                    <th key={d} className={`text-center py-4 px-2 whitespace-nowrap ${d === '토' ? 'text-blue-400' : d === '일' ? 'text-red-400' : ''}`}>
                       {d}
                     </th>
                   ))}
@@ -409,7 +409,7 @@ export default function StudyApp() {
                           {p.name}
                         </td>
                         {daily.map((h, i) => (
-                          <td key={i} className="p-4 text-center tabular-nums">
+                          <td key={i} className="py-4 px-2 text-center tabular-nums">
                             {h || 0}
                           </td>
                         ))}

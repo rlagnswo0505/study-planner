@@ -319,18 +319,24 @@ export default function StudyApp() {
             </div>
             <div className="sm:col-span-1">
               <Label htmlFor="log-hours">공부시간(+)</Label>
-              <Input
-                id="log-hours"
-                className="mt-1"
-                inputMode="numeric"
-                placeholder="시간"
-                value={logHours}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === '') setLogHours('');
-                  else setLogHours(Number(v));
-                }}
-              />
+              <Select value={logHours === '' ? '' : String(logHours)} onValueChange={(v) => setLogHours(v === '' ? '' : Number(v))}>
+                <SelectTrigger className="w-full mt-1">
+                  <SelectValue placeholder="공부시간 선택" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>공부시간</SelectLabel>
+                    {[...Array(24)].map((_, i) => {
+                      const val = 0.5 + i * 0.5;
+                      return (
+                        <SelectItem key={val} value={String(val)}>
+                          {val % 1 === 0 ? `${val}시간` : `${Math.floor(val)}시간 30분`}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
             <div className="sm:col-span-2">
               <Label htmlFor="log-comment">댓글/인증(선택)</Label>

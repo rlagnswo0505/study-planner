@@ -41,12 +41,15 @@ const HOUR_OPTIONS = Array.from({ length: 10 }, (_, i) => (i + 1) * 5); // 5..50
 const DAY_LABELS = ['월', '화', '수', '목', '금', '토', '일'];
 
 // Sunday-based week key for auto-reset
+// 월요일 기준 weekKey
 function thisWeekKey(d: Date = new Date()) {
   const date = dayjs(d);
   const year = date.year();
   const start = dayjs(new Date(year, 0, 1));
+  // 월요일 기준: start.day()가 1(월)일 때 0, 0(일)일 때 6
+  const monOffset = (start.day() + 6) % 7;
   const days = date.diff(start, 'day');
-  const week = Math.floor((days + start.day()) / 7) + 1;
+  const week = Math.floor((monOffset + days) / 7) + 1;
   return `${year}-W${String(week).padStart(2, '0')}`;
 }
 

@@ -1,11 +1,11 @@
 import './App.css';
-import StudyApp from './components/StudyApp';
+import AppRouter from './router/router';
 
 function App() {
   return (
     <main className="min-h-dvh bg-[#eeeefa]">
       <div className="mx-auto max-w-3xl px-4 py-6 sm:py-8">
-        <StudyApp />
+        <AppRouter />
       </div>
     </main>
   );

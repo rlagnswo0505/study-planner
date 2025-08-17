@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpenText, CalendarDays, Coffee, Gamepad2, RefreshCw, Trophy } from 'lucide-react';
+import { BookOpenText, CalendarDays, Coffee, Gamepad2, RefreshCw, Sheet, Trophy } from 'lucide-react';
 // import { useLocalStorage } from '../hooks/useLocalStorage';
 import { supabase } from '../lib/supabaseClient';
 // Supabase admins 테이블 연동 운영자 로그인 훅
@@ -252,10 +252,20 @@ export default function StudyApp() {
             <p className="text-sm text-muted-foreground">함께 목표를 공유하고 체크하며 동기부여를 얻어요.</p>
           </div>
         </div>
-        <Badge variant={'outline'} className="py-2 rounded-full">
-          <CalendarDays className="size-4 text-amber-600" />
-          <span className="whitespace-nowrap">{weekLabel}</span>
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={'outline'} className="py-2 rounded-full">
+            <CalendarDays className="size-4 text-amber-600" />
+            <span className="whitespace-nowrap">{weekLabel}</span>
+          </Badge>
+          {isAdmin && (
+            <Button asChild className="bg-amber-500 hover:bg-amber-600">
+              <a href="/stats" style={{ textDecoration: 'none' }}>
+                <Sheet />
+                통계페이지
+              </a>
+            </Button>
+          )}
+        </div>
       </header>
 
       {isAdmin && (

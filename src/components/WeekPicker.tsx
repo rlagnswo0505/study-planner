@@ -71,10 +71,33 @@ export function WeekPicker({ onWeekChange, initialDate = new Date(), className }
   };
 
   // 주차 계산
+  // 연 기준 주차 (필요 시 유지)
   const getWeekNumber = (date: Date) => {
     const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
     const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  };
+
+  // 월 기준 주차 계산 (월요일 시작)
+  const getWeekNumberInMonth = (date: Date) => {
+    const target = new Date(date);
+    target.setHours(0, 0, 0, 0);
+
+    // 해당 날짜가 속한 주의 월요일
+    const currentWeekStart = new Date(target);
+    const currentDay = currentWeekStart.getDay(); // 0: 일요일
+    const currentDiff = currentWeekStart.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+    currentWeekStart.setDate(currentDiff);
+
+    // 그 달 1일이 속한 주의 월요일 (부분 주차도 1주차로 포함)
+    const firstOfMonth = new Date(target.getFullYear(), target.getMonth(), 1);
+    const firstDay = firstOfMonth.getDay();
+    const firstDiff = firstOfMonth.getDate() - firstDay + (firstDay === 0 ? -6 : 1);
+    const firstWeekStart = new Date(firstOfMonth);
+    firstWeekStart.setDate(firstDiff);
+
+    const weekIndex = Math.floor((currentWeekStart.getTime() - firstWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1;
+    return weekIndex;
   };
 
   return (
@@ -94,6 +117,9 @@ export function WeekPicker({ onWeekChange, initialDate = new Date(), className }
           <div className="text-center">
             <div className="text-sm font-medium">
               {formatYear(startOfWeek)}년 {getWeekNumber(startOfWeek)}주차
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {currentDate.getMonth() + 1}월 {getWeekNumberInMonth(currentDate)}주차
             </div>
             <div className="text-xs text-muted-foreground">
               {formatDate(startOfWeek)} - {formatDate(endOfWeek)}

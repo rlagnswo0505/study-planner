@@ -24,7 +24,7 @@ const weekKeyFromDate = (date: Date) => {
 const StatsPage = () => {
   const navigate = useNavigate();
 
-  const [selectedWeek, setSelectedWeek] = useState<{ start: Date; end: Date } | null>(null);
+  // const [selectedWeek, setSelectedWeek] = useState<{ start: Date; end: Date } | null>(null);
   const [weekKey, setWeekKey] = useState<string>(weekKeyFromDate(new Date()));
 
   // weekKey 및 요일 필드가 포함된 확장 타입 (DB에서 weekKey 필드 존재 가정)
@@ -74,8 +74,8 @@ const StatsPage = () => {
   const [loading, setLoading] = useState(false);
 
   // WeekPicker에서 주차 변경 시 weekKey 갱신
-  const handleWeekChange = useCallback((startDate: Date, endDate: Date) => {
-    setSelectedWeek({ start: startDate, end: endDate });
+  const handleWeekChange = useCallback((startDate: Date) => {
+    // setSelectedWeek({ start: startDate, end: endDate });
     setWeekKey(weekKeyFromDate(startDate));
   }, []);
 

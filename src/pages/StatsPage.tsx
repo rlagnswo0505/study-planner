@@ -75,9 +75,38 @@ const StatsPage = () => {
   }
 
   const [rowData, setRowData] = useState<ParticipantRow[]>([]);
+  const [originalData, setOriginalData] = useState<ParticipantRow[]>([]); // 원본 데이터 추가
   const [editedRows, setEditedRows] = useState<ParticipantRow[]>([]);
   // 변경된 행 id 집합 (저장 최적화)
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+  const [hasChanges, setHasChanges] = useState(false); // 변경사항 여부 상태 추가
+
+  // 데이터 변경 여부를 체크하는 함수
+  const checkDataChanged = useCallback((original: ParticipantRow[], edited: ParticipantRow[]) => {
+    if (original.length !== edited.length) return true;
+
+    return original.some((originalRow) => {
+      const editedRow = edited.find((row) => row.id === originalRow.id);
+      if (!editedRow) return true;
+
+      // 요일별 시간 데이터 비교
+      const days: DayKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+      return days.some((day) => Number(originalRow[day] || 0) !== Number(editedRow[day] || 0));
+    });
+  }, []);
+
+  // 변경사항 여부 업데이트
+  useEffect(() => {
+    const changed = checkDataChanged(originalData, editedRows);
+    console.log('Data changed check:', {
+      originalData: originalData.length,
+      editedRows: editedRows.length,
+      changed,
+      original: originalData,
+      edited: editedRows,
+    });
+    setHasChanges(changed);
+  }, [originalData, editedRows, checkDataChanged]);
 
   const colDefs: ColDef<ParticipantRow>[] = [
     { field: 'name' as keyof Participant, headerName: '닉네임', editable: false, width: 100 },
@@ -145,8 +174,35 @@ const StatsPage = () => {
           return base;
         });
         setRowData(processed);
-        setEditedRows(processed);
+        // 깊은 복사를 통한 원본 데이터 저장
+        setOriginalData(
+          processed.map((row) => ({
+            ...row,
+            mon: row.mon,
+            tue: row.tue,
+            wed: row.wed,
+            thu: row.thu,
+            fri: row.fri,
+            sat: row.sat,
+            sun: row.sun,
+            dailyHours: [...(row.dailyHours || [])],
+          }))
+        );
+        setEditedRows(
+          processed.map((row) => ({
+            ...row,
+            mon: row.mon,
+            tue: row.tue,
+            wed: row.wed,
+            thu: row.thu,
+            fri: row.fri,
+            sat: row.sat,
+            sun: row.sun,
+            dailyHours: [...(row.dailyHours || [])],
+          }))
+        );
         setDirtyIds(new Set());
+        setHasChanges(false); // 데이터 로딩 후 변경사항 없음으로 초기화
       })
       .then(() => setLoading(false));
   }, [weekKey]);
@@ -156,12 +212,33 @@ const StatsPage = () => {
     getRowData();
   }, [getRowData]);
 
-  // 셀 수정 시 supabase update
+  // 셀 수정 시 editedRows 업데이트
   const onCellValueChanged = useCallback((params: CellValueChangedEvent) => {
+    console.log('Cell value changed:', params.data);
     const updated = params.data as ParticipantRow;
     const days: DayKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
     updated.dailyHours = days.map((d) => Number(updated[d] || 0));
-    setEditedRows((prev) => prev.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)));
+
+    setEditedRows((prev) => {
+      const newEditedRows = prev.map((row) =>
+        row.id === updated.id
+          ? {
+              ...row,
+              ...updated,
+              mon: updated.mon,
+              tue: updated.tue,
+              wed: updated.wed,
+              thu: updated.thu,
+              fri: updated.fri,
+              sat: updated.sat,
+              sun: updated.sun,
+              dailyHours: [...(updated.dailyHours || [])],
+            }
+          : row
+      );
+      console.log('Updated editedRows:', newEditedRows);
+      return newEditedRows;
+    });
     setDirtyIds((prev) => new Set(prev).add(updated.id));
   }, []);
 
@@ -185,7 +262,7 @@ const StatsPage = () => {
 
   // 저장 버튼 클릭 시
   const handleSave = async () => {
-    if (!dirtyIds.size) {
+    if (!hasChanges) {
       alert('변경된 내용이 없습니다.');
       return;
     }
@@ -209,7 +286,22 @@ const StatsPage = () => {
         await supabase.from('participants').update(payload).eq('id', row.id).eq('weekKey', weekKey);
       }
       alert('저장되었습니다!');
-      getRowData();
+      // 저장 후 원본 데이터 업데이트
+      setOriginalData(
+        editedRows.map((row) => ({
+          ...row,
+          mon: row.mon,
+          tue: row.tue,
+          wed: row.wed,
+          thu: row.thu,
+          fri: row.fri,
+          sat: row.sat,
+          sun: row.sun,
+          dailyHours: [...(row.dailyHours || [])],
+        }))
+      );
+      setDirtyIds(new Set());
+      setHasChanges(false);
     } catch {
       alert('저장 중 오류가 발생했습니다.');
     } finally {
@@ -233,7 +325,7 @@ const StatsPage = () => {
             <CardTitle>참여자 데이터 (AG Grid)</CardTitle>
             <CardDescription>셀을 직접 수정하면 DB에 반영됩니다.</CardDescription>
           </div>
-          <Button disabled={loading} className="bg-[#838de5] hover:bg-[#6f7dff]" onClick={handleSave}>
+          <Button disabled={loading || !hasChanges} className="bg-[#838de5] hover:bg-[#6f7dff] disabled:bg-gray-300 disabled:cursor-not-allowed" onClick={handleSave}>
             <Save />
             저장
           </Button>

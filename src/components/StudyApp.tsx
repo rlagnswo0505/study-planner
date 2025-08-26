@@ -242,7 +242,11 @@ export default function StudyApp() {
           </>
         )}
       </div>
-      <header className="flex items-center justify-between gap-3">
+      <header
+        className="flex items-center justify-between gap-3
+      flex-col md:flex-row
+      "
+      >
         <div className="flex items-center gap-3">
           <div className="rounded-full bg-muted p-2">
             <BookOpenText className="size-5" />

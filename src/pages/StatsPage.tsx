@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { supabase } from '../lib/supabaseClient';
 import type { Participant } from '../lib/types';
-import type { ColDef, ValueGetterParams, CellValueChangedEvent } from 'ag-grid-community';
+import type { ColDef, ValueGetterParams, CellValueChangedEvent, ICellRendererParams } from 'ag-grid-community';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import { Button } from '@/components/ui/button';
-import { House, Save } from 'lucide-react';
+import { House, Save, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -19,6 +19,38 @@ const weekKeyFromDate = (date: Date) => {
   const days = Math.floor((date.getTime() - first.getTime()) / (1000 * 60 * 60 * 24));
   const week = Math.floor((monOffset + days) / 7) + 1;
   return `${year}-W${String(week).padStart(2, '0')}`;
+};
+
+// 삭제 버튼 셀 렌더러
+const DeleteButtonCellRenderer = (props: ICellRendererParams) => {
+  const handleDelete = async () => {
+    if (window.confirm(`${props.data?.name} 님의 데이터를 삭제하시겠습니까?`)) {
+      try {
+        const { error } = await supabase.from('participants').delete().eq('id', props.data?.id).eq('weekKey', props.data?.weekKey);
+
+        if (error) {
+          console.error('Delete error:', error);
+          alert('삭제 중 오류가 발생했습니다.');
+          return;
+        }
+
+        alert('삭제되었습니다.');
+        // 부모 컴포넌트의 데이터 새로고침을 위해 props를 통해 콜백 호출
+        if (props.context?.refreshData) {
+          props.context.refreshData();
+        }
+      } catch (error) {
+        console.error('Delete error:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    }
+  };
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleDelete} className="h-8 px-2 text-red-600 hover:text-red-700 hover:bg-red-50">
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  );
 };
 
 const StatsPage = () => {
@@ -50,12 +82,12 @@ const StatsPage = () => {
   const colDefs: ColDef<ParticipantRow>[] = [
     { field: 'name' as keyof Participant, headerName: '닉네임', editable: false, width: 100 },
 
-    { field: 'mon' as keyof Participant, headerName: '월', editable: true, width: 70, cellStyle: { textAlign: 'center' } },
-    { field: 'tue' as keyof Participant, headerName: '화', editable: true, width: 70, cellStyle: { textAlign: 'center' } },
-    { field: 'wed' as keyof Participant, headerName: '수', editable: true, width: 70, cellStyle: { textAlign: 'center' } },
-    { field: 'thu' as keyof Participant, headerName: '목', editable: true, width: 70, cellStyle: { textAlign: 'center' } },
-    { field: 'fri' as keyof Participant, headerName: '금', editable: true, width: 70, cellStyle: { textAlign: 'center' } },
-    { field: 'sat' as keyof Participant, headerName: '토', editable: true, width: 70, cellStyle: { textAlign: 'center' } },
+    { field: 'mon' as keyof Participant, headerName: '월', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
+    { field: 'tue' as keyof Participant, headerName: '화', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
+    { field: 'wed' as keyof Participant, headerName: '수', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
+    { field: 'thu' as keyof Participant, headerName: '목', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
+    { field: 'fri' as keyof Participant, headerName: '금', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
+    { field: 'sat' as keyof Participant, headerName: '토', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
     { field: 'sun' as keyof Participant, headerName: '일', editable: true, width: 70, cellStyle: { textAlign: 'center' } },
     { field: 'goalHours' as keyof Participant, headerName: '목표시간', editable: false, width: 100, cellStyle: { textAlign: 'center' } },
     {
@@ -68,6 +100,15 @@ const StatsPage = () => {
         return dKeys.reduce((sum, k) => sum + Number(params.data?.[k] || 0), 0);
       },
       cellStyle: { textAlign: 'center' },
+    },
+    {
+      headerName: '삭제',
+      width: 80,
+      editable: false,
+      cellRenderer: DeleteButtonCellRenderer,
+      cellStyle: { textAlign: 'center' },
+      sortable: false,
+      filter: false,
     },
   ];
 
@@ -181,7 +222,7 @@ const StatsPage = () => {
         </CardHeader>
         <CardContent>
           <div className="ag-theme-alpine" style={{ height: 400, width: '100%' }}>
-            <AgGridReact rowData={rowData} columnDefs={colDefs} onCellValueChanged={onCellValueChanged} animateRows={true} defaultColDef={{ editable: true, resizable: true }} loadingOverlayComponentParams={{ loadingMessage: '로딩 중...' }} singleClickEdit={true} />
+            <AgGridReact rowData={rowData} columnDefs={colDefs} onCellValueChanged={onCellValueChanged} animateRows={true} defaultColDef={{ editable: true, resizable: true }} loadingOverlayComponentParams={{ loadingMessage: '로딩 중...' }} singleClickEdit={true} context={{ refreshData: getRowData }} />
           </div>
         </CardContent>
       </Card>

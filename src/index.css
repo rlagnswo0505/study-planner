@@ -8,7 +8,7 @@
   font-family: 'Pretendard';
   font-style: normal;
   font-weight: 400;
-  src: url('/fonts/Pretendard-Regular.woff2') format('woff2'),
+  src: url('./fonts/pretendard/PretendardVariable.woff2') format('woff2');
 }
 
 * {

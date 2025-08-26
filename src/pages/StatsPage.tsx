@@ -239,7 +239,7 @@ const StatsPage = () => {
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="ag-theme-alpine" style={{ height: 400, width: '100%' }}>
+          <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
             <AgGridReact rowData={rowData} columnDefs={colDefs} onCellValueChanged={onCellValueChanged} animateRows={true} defaultColDef={{ editable: true, resizable: true }} loadingOverlayComponentParams={{ loadingMessage: '로딩 중...' }} singleClickEdit={true} context={{ refreshData: getRowData }} getRowStyle={getRowStyle} />
           </div>
         </CardContent>

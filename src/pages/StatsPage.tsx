@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { supabase } from '../lib/supabaseClient';
 import type { Participant } from '../lib/types';
-import type { ColDef, ValueGetterParams, CellValueChangedEvent, ICellRendererParams, RowStyle } from 'ag-grid-community';
+import type { ColDef, ValueGetterParams, CellValueChangedEvent, ICellRendererParams } from 'ag-grid-community';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import { Button } from '@/components/ui/button';
 import { House, Save, Trash2 } from 'lucide-react';

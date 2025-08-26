@@ -2,28 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { BookOpenText, CalendarDays, Coffee, Gamepad2, RefreshCw, Sheet, Trophy } from 'lucide-react';
 // import { useLocalStorage } from '../hooks/useLocalStorage';
 import { supabase } from '../lib/supabaseClient';
+import { useAdminAuth } from '../hooks/useAdminAuth';
 // Supabase admins 테이블 연동 운영자 로그인 훅
-function useSupabaseAdminAuth() {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  async function login(nickname: string, password: string) {
-    const { data, error } = await supabase.from('admins').select('*').eq('nickname', nickname).eq('password', password).single();
-    if (error || !data) {
-      setIsAdmin(false);
-      setError('닉네임 또는 비밀번호가 올바르지 않습니다.');
-      return false;
-    } else {
-      setIsAdmin(true);
-      setError(null);
-      return true;
-    }
-  }
-  function logout() {
-    setIsAdmin(false);
-    setError(null);
-  }
-  return { isAdmin, error, login, logout };
-}
 import type { GiftRecord, Participant } from '../lib/types';
 import WheelSpinner from './games/WheelSpinner';
 import { Input } from './ui/input';
@@ -85,7 +65,7 @@ export default function StudyApp() {
 
   const weekKey = useMemo(() => thisWeekKey(), []);
   const weekLabel = koreanWeekOfMonthLabel();
-  const { isAdmin, error: adminError, login, logout } = useSupabaseAdminAuth();
+  const { isAdmin, error: adminError, login, logout, isLoading: adminLoading } = useAdminAuth();
   const [adminNick, setAdminNick] = useState('');
   const [adminPw, setAdminPw] = useState('');
 
@@ -386,7 +366,7 @@ export default function StudyApp() {
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          {loading ? (
+          {loading || adminLoading ? (
             <div className="flex items-center justify-center py-8">
               <svg className="animate-spin h-8 w-8 text-indigo-500 mr-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

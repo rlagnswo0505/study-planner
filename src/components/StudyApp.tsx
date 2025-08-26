@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpenText, CalendarDays, Coffee, Gamepad2, RefreshCw, Sheet, Trophy } from 'lucide-react';
+import { BookOpenText, CalendarDays, Coffee, RefreshCw, Sheet, Trophy } from 'lucide-react';
 // import { useLocalStorage } from '../hooks/useLocalStorage';
 import { supabase } from '../lib/supabaseClient';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 // Supabase admins 테이블 연동 운영자 로그인 훅
-import type { GiftRecord, Participant } from '../lib/types';
-import WheelSpinner from './games/WheelSpinner';
+import type { Participant } from '../lib/types';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
-import { Alert, AlertTitle, AlertDescription } from './ui/alert';
 import { Badge } from './ui/badge';
 import { Table } from './ui/table';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from './ui/select';
@@ -60,7 +58,6 @@ function sumHours(p: Participant) {
 
 export default function StudyApp() {
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [gifts, setGifts] = useState<GiftRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
   const weekKey = useMemo(() => thisWeekKey(), []);
@@ -69,15 +66,18 @@ export default function StudyApp() {
   const [adminNick, setAdminNick] = useState('');
   const [adminPw, setAdminPw] = useState('');
 
-  // DB에서 participants/gifts 불러오기
+  // DB에서 participants 불러오기
   useEffect(() => {
-    setLoading(true);
-    Promise.all([supabase.from('participants').select('*').eq('weekKey', weekKey), supabase.from('gifts').select('*').eq('weekKey', weekKey)])
-      .then(([pRes, gRes]) => {
+    async function loadData() {
+      setLoading(true);
+      try {
+        const pRes = await supabase.from('participants').select('*').eq('weekKey', weekKey);
         setParticipants(Array.isArray(pRes.data) ? pRes.data : []);
-        setGifts(Array.isArray(gRes.data) ? gRes.data : []);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
   }, [weekKey]);
 
   // Form states
@@ -174,24 +174,11 @@ export default function StudyApp() {
 
   async function handleResetAll() {
     if (!isAdmin) return;
-    if (!window.confirm('정말로 이번 주 모든 참여자/선물 기록을 초기화하시겠습니까?')) return;
+    if (!window.confirm('정말로 이번 주 모든 참여자 기록을 초기화하시겠습니까?')) return;
     setLoading(true);
     await supabase.from('participants').delete().eq('weekKey', weekKey);
-    await supabase.from('gifts').delete().eq('weekKey', weekKey);
     setParticipants([]);
-    setGifts([]);
     setLoading(false);
-  }
-
-  function recordGift(fromName: string, toName: string) {
-    const rec: GiftRecord = {
-      id: crypto.randomUUID(),
-      weekKey,
-      from: fromName,
-      to: toName,
-      createdAt: new Date().toISOString(),
-    };
-    setGifts((prev) => [rec, ...prev]);
   }
 
   const hourItems = HOUR_OPTIONS.map((h) => (
@@ -448,50 +435,6 @@ export default function StudyApp() {
         </CardContent>
       </Card>
 
-      <Card className="w-full">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Gamepad2 className="size-5" />
-            <div>
-              <CardTitle>벌칙 게임: 선물 받을 사람 뽑기</CardTitle>
-              <CardDescription>미달성자가 정해지면 달성자들 중 랜덤으로 1명을 뽑아 선물을 보냅니다.</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {nonAchievers.length === 0 || achievers.length === 0 ? (
-            <Alert className="mb-2">
-              <AlertTitle>참여 조건을 확인하세요</AlertTitle>
-              <AlertDescription>
-                미달성자 {nonAchievers.length}명 / 달성자 {achievers.length}명. 둘 다 1명 이상일 때 진행할 수 있어요.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <>
-              <GiftGame achievers={achievers} nonAchievers={nonAchievers} isAdmin={isAdmin} onGift={(from, to) => recordGift(from, to)} />
-              <div className="separator" />
-              <div>
-                <h4 className="mb-2 text-sm font-medium">선물 기록</h4>
-                {gifts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">아직 선물 기록이 없습니다.</p>
-                ) : (
-                  <ul className="space-y-1 text-sm">
-                    {gifts.map((g) => (
-                      <li key={g.id} className="flex items-center justify-between">
-                        <span>
-                          {g.weekKey} · {g.from} ➜ {g.to}
-                        </span>
-                        <span className="text-muted-foreground">{new Date(g.createdAt).toLocaleString()}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-xs text-muted-foreground">
           <p> 이 프로젝트의 목적은 목표를 공유하고 서로 체크하며 동기부여를 얻는 것입니다.</p>
@@ -512,67 +455,6 @@ export default function StudyApp() {
           – Richard Feynman
         </h3>
       </div>
-    </div>
-  );
-}
-
-function GiftGame({ achievers, nonAchievers, onGift, isAdmin }: { achievers: Participant[]; nonAchievers: Participant[]; isAdmin: boolean; onGift: (from: string, to: string) => void }) {
-  const [from, setFrom] = useState(nonAchievers[0]?.name ?? '');
-  const [picked, setPicked] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!nonAchievers.find((n) => n.name === from)) {
-      setFrom(nonAchievers[0]?.name ?? '');
-    }
-  }, [nonAchievers, from]);
-
-  const achieverNames = achievers.map((a) => a.name);
-
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="sm:col-span-1">
-          <Label htmlFor="from">미달성자</Label>
-          <Select value={from} onValueChange={(v) => setFrom(v)}>
-            <SelectTrigger id="from" className="w-30 mt-1">
-              <SelectValue placeholder="미달성자 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectLabel>미달성자</SelectLabel>
-                {nonAchievers.map((p) => (
-                  <SelectItem key={p.name} value={p.name}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="sm:col-span-2">
-          <div className="text-sm text-muted-foreground">달성자: {achieverNames.join(', ') || '-'}</div>
-        </div>
-      </div>
-
-      <div>
-        <WheelSpinner
-          options={achieverNames}
-          onDone={(winner) => {
-            setPicked(winner);
-            if (from) onGift(from, winner);
-          }}
-          isAdmin={isAdmin}
-        />
-      </div>
-
-      {picked && (
-        <div className="alert">
-          <div className="font-medium">결과</div>
-          <div>
-            {from} ➜ {picked} 님께 선물!
-          </div>
-        </div>
-      )}
     </div>
   );
 }

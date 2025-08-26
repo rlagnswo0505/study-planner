@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { supabase } from '../lib/supabaseClient';
 import type { Participant } from '../lib/types';
-import type { ColDef, ValueGetterParams, CellValueChangedEvent, ICellRendererParams } from 'ag-grid-community';
+import type { ColDef, ValueGetterParams, CellValueChangedEvent, ICellRendererParams, RowStyle } from 'ag-grid-community';
 import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
 import { Button } from '@/components/ui/button';
 import { House, Save, Trash2 } from 'lucide-react';
@@ -88,13 +88,13 @@ const StatsPage = () => {
     { field: 'thu' as keyof Participant, headerName: '목', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
     { field: 'fri' as keyof Participant, headerName: '금', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
     { field: 'sat' as keyof Participant, headerName: '토', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
-    { field: 'sun' as keyof Participant, headerName: '일', editable: true, width: 70, cellStyle: { textAlign: 'center' } },
-    { field: 'goalHours' as keyof Participant, headerName: '목표시간', editable: false, width: 100, cellStyle: { textAlign: 'center' } },
+    { field: 'sun' as keyof Participant, headerName: '일', editable: true, width: 60, cellStyle: { textAlign: 'center' } },
+    { field: 'goalHours' as keyof Participant, headerName: '목표시간', editable: false, width: 90, cellStyle: { textAlign: 'center' } },
     {
       field: 'studiedHours' as keyof ParticipantRow,
       headerName: '공부시간',
       editable: false,
-      width: 100,
+      width: 90,
       valueGetter: (params: ValueGetterParams) => {
         const dKeys: (keyof ParticipantRow)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
         return dKeys.reduce((sum, k) => sum + Number(params.data?.[k] || 0), 0);
@@ -165,6 +165,24 @@ const StatsPage = () => {
     setDirtyIds((prev) => new Set(prev).add(updated.id));
   }, []);
 
+  // 행 스타일 함수
+  const getRowStyle = useCallback((params: { data?: ParticipantRow }) => {
+    if (!params.data) return undefined;
+
+    const data = params.data;
+    const dKeys: (keyof ParticipantRow)[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    const studiedHours = dKeys.reduce((sum, k) => sum + Number(data[k] || 0), 0);
+    const goalHours = data.goalHours || 0;
+
+    if (studiedHours >= goalHours) {
+      // 목표시간 달성 - 녹색 배경 (투명도 있음)
+      return { backgroundColor: 'rgba(34, 197, 94, 0.1)' }; // green-500 with 10% opacity
+    } else {
+      // 목표시간 미달성 - 빨간색 배경 (투명도 있음)
+      return { backgroundColor: 'rgba(239, 68, 68, 0.1)' }; // red-500 with 10% opacity
+    }
+  }, []);
+
   // 저장 버튼 클릭 시
   const handleSave = async () => {
     if (!dirtyIds.size) {
@@ -222,7 +240,7 @@ const StatsPage = () => {
         </CardHeader>
         <CardContent>
           <div className="ag-theme-alpine" style={{ height: 400, width: '100%' }}>
-            <AgGridReact rowData={rowData} columnDefs={colDefs} onCellValueChanged={onCellValueChanged} animateRows={true} defaultColDef={{ editable: true, resizable: true }} loadingOverlayComponentParams={{ loadingMessage: '로딩 중...' }} singleClickEdit={true} context={{ refreshData: getRowData }} />
+            <AgGridReact rowData={rowData} columnDefs={colDefs} onCellValueChanged={onCellValueChanged} animateRows={true} defaultColDef={{ editable: true, resizable: true }} loadingOverlayComponentParams={{ loadingMessage: '로딩 중...' }} singleClickEdit={true} context={{ refreshData: getRowData }} getRowStyle={getRowStyle} />
           </div>
         </CardContent>
       </Card>

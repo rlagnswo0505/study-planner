@@ -194,17 +194,13 @@ export default function StudyApp() {
         {isAdmin ? (
           <>
             <span className="text-green-600 font-bold">운영자 모드</span>
-            <Button size="sm" variant="outline" onClick={logout}>
-              로그아웃
-            </Button>
+            <Button onClick={logout}>로그아웃</Button>
           </>
         ) : (
           <>
             <Input style={{ maxWidth: 120 }} placeholder="운영자 닉네임" value={adminNick} onChange={(e) => setAdminNick(e.target.value)} />
             <Input style={{ maxWidth: 100 }} type="password" placeholder="비밀번호" value={adminPw} onChange={(e) => setAdminPw(e.target.value)} />
-            <Button size="sm" variant="outline" onClick={() => login(adminNick, adminPw)}>
-              로그인
-            </Button>
+            <Button onClick={() => login(adminNick, adminPw)}>로그인</Button>
             {adminError && <span className="text-red-500 text-xs ml-2">{adminError}</span>}
           </>
         )}
@@ -266,7 +262,7 @@ export default function StudyApp() {
                 </Select>
               </div>
               <div className="flex items-end sm:col-span-1">
-                <Button className="w-full bg-[#838de5] hover:bg-[#6f7dff]" onClick={handleVote}>
+                <Button className="w-full" onClick={handleVote}>
                   목표 등록
                 </Button>
               </div>
@@ -327,7 +323,7 @@ export default function StudyApp() {
               <Input id="log-comment" className="mt-1" placeholder="예: 8/8 오프라인 스터디 3시간" value={logComment} onChange={(e) => setLogComment(e.target.value)} />
             </div>
             <div className="sm:col-span-4">
-              <Button className="w-full sm:w-auto bg-[#838de5] hover:bg-[#6f7dff]" onClick={handleLog}>
+              <Button className="w-full sm:w-auto" onClick={handleLog}>
                 기록하기 (오늘: {DAY_LABELS[todayMonIndex()]})
               </Button>
             </div>
@@ -405,8 +401,8 @@ export default function StudyApp() {
                             {h || 0}
                           </td>
                         ))}
-                        <td className="p-4 text-right">{p.goalHours ?? '-'} h</td>
-                        <td className="p-4 text-right tabular-nums">{total} h</td>
+                        <td className="p-4 text-right">{p.goalHours ?? '-'}h</td>
+                        <td className="p-4 text-right tabular-nums">{total}h</td>
                         <td className="p-4 text-center">
                           {p.goalHours != null ? (
                             total >= (p.goalHours || 0) ? (
@@ -447,7 +443,7 @@ export default function StudyApp() {
       </div>
       <div className="flex flex-col items-center my-8">
         <h2 className="font-bold text-4xl text-gray-400">"</h2>
-        <blockquote className="text-center text-lg italic text-indigo-700 font-serif max-w-xl" style={{ fontFamily: 'Georgia, Times, serif' }}>
+        <blockquote className="text-center text-lg italic font-bold font-serif max-w-xl" style={{ fontFamily: 'Georgia, Times, serif' }}>
           첫 번째 원칙은 자신을 속여서는 안 되며, 자신을 속이기 가장 쉬운 사람은 바로 자신이다.
         </blockquote>
         <h2 className="font-bold text-4xl text-gray-400 mt-2">"</h2>
